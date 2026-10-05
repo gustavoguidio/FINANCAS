@@ -141,8 +141,8 @@ if(s!==null)S+=s}
 c.E=Math.round(E*100)/100;c.S=Math.round(S*100)/100;c.sem=rec/8;if(ult)c.ult=ult.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})});}
 function cur(){return Math.max(0,[...nav.children].findIndex(b=>b.getAttribute("aria-selected")=="true"))}
 async function tab(n){if(!FILE_ID)throw 0;const r=await fetch(`https://docs.google.com/spreadsheets/d/${FILE_ID}/gviz/tq?tqx=out:csv&headers=1&sheet=${encodeURIComponent(n)}&t=${Date.now()}`,{cache:"no-store"});if(!r.ok)throw 0;const rows=csv(await r.text());if(rows.length<2)throw 0;return rows}
-async function load(){HOJE=new Date();sub.textContent="Atualizando…";const st=[],ok=(n,f)=>tab(ABAS[n]).then(rows=>{f(rows);st.push(n+" ✓")}).catch(()=>st.push(n+" ✗ (padrão)"));
-await ok("cad",r=>setCars(rCad(r)));await ok("frota",r=>applyLanc(rLanc(r)));let V=null;await ok("venc",r=>{V=rVenc(r)});await ok("mes",r=>setFin(V||FM.gastos,rMes(r)));if(V)FM.gastos=V;await ok("div",r=>setDiv(rDiv(r)));linkCars();
+async function load(){HOJE=new Date();sub.textContent="Atualizando…";const st=[],ok=(n,f)=>tab(ABAS[n]).then(rows=>{f(rows);st.push(n+" ✓")}).catch(()=>st.push(n+" ✗ (aba ou cabeçalho não encontrado: usando padrão)"));
+const need=x=>{if(!x||!(x.length??x.rows.length))throw 0;return x};await ok("cad",r=>setCars(need(rCad(r))));await ok("frota",r=>applyLanc(need(rLanc(r))));let V=null;await ok("venc",r=>{V=need(rVenc(r))});await ok("mes",r=>{const m=rMes(r);if(!m.rows.length||!m.months.length)throw 0;setFin(V||FM.gastos,m)});if(V)FM.gastos=V;await ok("div",r=>setDiv(need(rDiv(r))));linkCars();
 calc();show(cur());const bad=C.filter(c=>c.bad).map(c=>c.n+": "+c.bad+" datas ilegíveis (ex.: "+c.ex+")");
 sub.textContent="Planilha lida em "+HOJE.toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})+" · "+st.join(" · ")+(bad.length?" · ⚠ "+bad.join("; "):"")}
 const FILE_ID="1rcbmwEQZrufhXlcEKx4mIJf5YYmqs7xhoMaPknEyaLA",SHEET_FIN_EDIT_URL="";
