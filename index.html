@@ -17,6 +17,12 @@ nav button:focus-visible{outline:3px solid var(--g);outline-offset:2px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-bottom:16px}
 .k{background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:12px 14px}
 .k small{color:var(--mut);display:block;font-size:.8rem}.k b{font-size:1.3rem}
+button.k{font:inherit;color:inherit;text-align:left;cursor:pointer;width:100%}button.k:hover{border-color:var(--ink)}button.k:focus-visible{outline:3px solid var(--g);outline-offset:2px}.k .more{margin-top:4px;text-decoration:underline}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px));z-index:50}
+.dlg{background:var(--card);color:var(--ink);border:1px solid var(--ln);border-radius:12px;max-width:560px;width:100%;max-height:100%;overflow:auto;padding:14px 16px}
+.dh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}.dh b{font-size:1.1rem}
+.dh button{font:inherit;border:1px solid var(--ln);background:var(--bg);color:var(--ink);border-radius:8px;padding:6px 12px;cursor:pointer}.dh button:focus-visible{outline:3px solid var(--g);outline-offset:2px}
+.dlg td:nth-child(2),.dlg th:nth-child(2){text-align:left}.dlg td:first-child{white-space:nowrap;color:var(--mut)}.dlg td small{display:block}
 .pos{color:var(--g)}.neg{color:var(--r)}.warn{color:var(--a)}
 .row{background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:14px;margin-bottom:10px}
 .row h3{margin:0 0 6px;font-size:1.05rem;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
@@ -101,7 +107,7 @@ ${c.mot?`<tr><td>Saldo devedor (${c.mot})</td><td>${R(c.dev)}</td></tr>`:""}
 <tr><td>Manutenções feitas</td><td>${c.obs}</td></tr></table></div>`}
 const tabs=[["Financeiro",fin],["Frota",frota]];
 const nav=document.getElementById("tabs"),view=document.getElementById("view");
-function show(i){[...nav.children].forEach((b,j)=>b.setAttribute("aria-selected",i===j));view.innerHTML=tabs[i][1]()}
+function show(i){closePop();[...nav.children].forEach((b,j)=>b.setAttribute("aria-selected",i===j));view.innerHTML=tabs[i][1]()}
 tabs.forEach((t,i)=>{const b=document.createElement("button");b.textContent=t[0];b.setAttribute("role","tab");b.onclick=()=>show(i);nav.appendChild(b)});
 function setC(v){DESC=+v;calc();const a=[...nav.children].findIndex(b=>b.getAttribute("aria-selected")=="true");show(a)}
 function setD(v){DESV=+v;calc();const a=[...nav.children].findIndex(b=>b.getAttribute("aria-selected")=="true");show(a)}
@@ -142,7 +148,7 @@ c.E=Math.round(E*100)/100;c.S=Math.round(S*100)/100;c.sem=rec/8;if(ult)c.ult=ult
 function cur(){return Math.max(0,[...nav.children].findIndex(b=>b.getAttribute("aria-selected")=="true"))}
 async function tab(n){if(!FILE_ID)throw 0;const r=await fetch(`https://docs.google.com/spreadsheets/d/${FILE_ID}/gviz/tq?tqx=out:csv&headers=1&sheet=${encodeURIComponent(n)}&t=${Date.now()}`,{cache:"no-store"});if(!r.ok)throw 0;const rows=csv(await r.text());if(rows.length<2)throw 0;return rows}
 async function load(){HOJE=new Date();sub.textContent="Atualizando…";const st=[],ok=(n,f)=>tab(ABAS[n]).then(rows=>{f(rows);st.push(n+" ✓")}).catch(()=>st.push(n+" ✗ (aba ou cabeçalho não encontrado: usando padrão)"));
-const need=x=>{if(!x||!(x.length??x.rows.length))throw 0;return x};await ok("cad",r=>setCars(need(rCad(r))));await ok("frota",r=>applyLanc(need(rLanc(r))));let V=null;await ok("venc",r=>{V=need(rVenc(r))});await ok("mes",r=>{const m=rMes(r);if(!m.rows.length||!m.months.length)throw 0;setFin(V||FM.gastos,m)});if(V)FM.gastos=V;await ok("div",r=>setDiv(need(rDiv(r))));linkCars();
+const need=x=>{if(!x||!(x.length??x.rows.length))throw 0;return x};await ok("cad",r=>setCars(need(rCad(r))));await ok("frota",r=>applyLanc(need(rLanc(r))));let V=null;await ok("venc",r=>{V=need(rVenc(r))});await ok("mes",r=>{const m=rMes(r);if(!m.rows.length||!m.months.length)throw 0;setFin(V||FM.gastos,m)});if(V)setG(V);await ok("div",r=>setDiv(need(rDiv(r))));linkCars();
 calc();show(cur());const bad=C.filter(c=>c.bad).map(c=>c.n+": "+c.bad+" datas ilegíveis (ex.: "+c.ex+")");
 sub.textContent="Planilha lida em "+HOJE.toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})+" · "+st.join(" · ")+(bad.length?" · ⚠ "+bad.join("; "):"")}
 const FILE_ID="1-ZgqSZAIA97LrW7HvL4sEDNtMVKgBzpAfi4DkkSehHM",SHEET_FIN_EDIT_URL="";
@@ -169,8 +175,12 @@ function rMes(rows){const I=hidx(rows,{item:["item","descr"],tipo:["tipo"]}),hd=
 const r=rows.slice(1).filter(x=>String(G(x,I.item)||"").trim()).map(x=>{const vals={};cols.forEach(([j,k])=>{const v=num(x[j]);if(v!==null)vals[k]=v});return {label:String(G(x,I.item)).trim(),tipo:nrm(G(x,I.tipo)),vals}});return {months:cols.map(c=>c[1]).sort((a,b)=>a-b),rows:r}}
 function rDiv(rows){const I=hidx(rows,{t:["tipo"],d:["descr"],np:["parcelas"],vp:["valor da parcela","valor parcela"],tot:["total"]});
 return rows.slice(1).filter(x=>String(G(x,I.d)||"").trim()).map(x=>{const np=num(G(x,I.np)),vp=num(G(x,I.vp));let tot=num(G(x,I.tot));if(tot===null&&np!==null&&vp!==null)tot=np*vp;return {t:nrm(G(x,I.t)).startsWith("inv")?"inv":"div",d:String(G(x,I.d)).trim(),np,vp:vp??(np?(tot||0)/np:null),tot:tot||0}})}
-let FM={gastos:[],months:[],grid:[],div:[],invest:[]},FT="dash",REAL=true,HZ=6;
-function setFin(v,m){FM.gastos=v;FM.months=m.months;FM.grid=m.rows}
+let FM={gastos:[],receb:[],months:[],grid:[],div:[],invest:[]},FT="dash",REAL=true,HZ=6;
+const RECEB_DEF=[{d:"ML",v:3100,dia:15},{d:"ML",v:2500,dia:30},{d:"Cris",v:1300,dia:30}],isRec=g=>/^(receb|entrada)/.test(nrm(g.cat));
+function setG(v){const r=v.filter(isRec);FM.receb=r.length?r.filter(g=>g.dia).map(g=>({d:g.d,v:g.v,dia:g.dia})):RECEB_DEF;FM.gastos=v.filter(g=>!isRec(g))}
+function setFin(v,m){setG(v);FM.months=m.months;FM.grid=m.rows}
+const dClamp=(y,m,dia)=>new Date(y,m,Math.min(dia,new Date(y,m+1,0).getDate()));
+function splitEnt(l,tot){const s=FM.receb.filter(x=>same(x.d,l)).sort((a,b)=>a.dia-b.dia);if(!s.length||!tot)return null;let rest=tot;return s.map((x,i)=>{const v=i===s.length-1?rest:Math.min(x.v,rest);rest-=v;return {dia:x.dia,v}}).filter(p=>p.v>0)}
 function setDiv(d){FM.div=d.filter(x=>x.t==="div");FM.invest=d.filter(x=>x.t==="inv")}
 function linkCars(){C.forEach(c=>{if(!c.cons)return;const d=FM.div.find(x=>same(x.d,c.cons));if(d){if(d.np!==null)c.np=d.np;if(d.vp!==null)c.vp=d.vp}})}
 const act=(g,k)=>(g.ini===null||g.ini<=k)&&(g.fim===null||g.fim>=k);
@@ -178,22 +188,38 @@ setCars(rCad(csv(DEFT.cad)));applyLanc(rLanc(csv(DEFT.frota)));setFin(rVenc(csv(
 function proj(){const n0=HOJE.getFullYear()*12+HOJE.getMonth();let ks=FM.months.filter(k=>k>=n0).slice(0,14);if(!ks.length)ks=Array.from({length:12},(_,i)=>n0+i);
 const carA=C.reduce((a,c)=>a+Math.max(c.sem,0)*SEM,0);let open=0;FM.grid.filter(r=>r.tipo.startsWith("saldo")).forEach(r=>{const k=Object.keys(r.vals).map(Number).filter(k=>k<=n0).sort((a,b)=>b-a)[0]??Object.keys(r.vals).map(Number).sort((a,b)=>a-b)[0];if(k!==undefined)open+=r.vals[k]});
 let cum=open;const M=[];let mt=null;
-ks.forEach(k=>{let ent=0,carPlan=0,fat=0,ev=0,meta=0,metaL="";const dE=[],dCar=[],dF=[],dV=[];FM.grid.forEach(r=>{const v=r.vals[k]||0,t=r.tipo;if(!v||t.startsWith("saldo"))return;if(t.startsWith("entrada")){ent+=v;dE.push({l:r.label,v})}else if(t.startsWith("carro")){carPlan+=v;dCar.push({l:r.label,v})}else if(t.startsWith("fatura")){fat+=v;dF.push({l:r.label,v})}else if(t.startsWith("meta")){meta+=v;metaL=r.label}else{ev-=Math.abs(v);dV.push({l:r.label,v:Math.abs(v)})}});
-const hd=HOJE.getDate(),gl=FM.gastos.filter(g=>!g.card&&act(g,k)&&(k!==n0||!g.dia||g.dia>hd)),con=gl.reduce((a,g)=>a+g.v,0),cardEst=FM.gastos.filter(g=>g.card&&act(g,k)).reduce((a,g)=>a+g.v,0),cc=k===n0&&hd>=10?0:(fat>0?fat:cardEst),car=REAL||!carPlan?carA:carPlan,sal=ent+car-con-cc+ev;cum+=sal;
-const dC=gl.map(g=>({l:g.d,v:g.v})),dCr=C.map(c=>({l:c.n+" (ritmo real)",v:Math.max(c.sem,0)*SEM})),dFt=cc>0?(fat>0?dF:[{l:"Fatura do cartão (itens)",v:cc}]):[];
-M.push({k,ent,car,carPlan,con,cc,ev,sal,cum,sai:con+cc,det:{ent:[...dE,...(REAL||!carPlan?dCr:dCar)],con:dC,sai:[...dC,...dFt,...dV]}});if(meta>0&&!mt)mt={k,v:meta,d:metaL}});
+const hd=HOJE.getDate();ks.forEach(k=>{let entTot=0,entRec=0,ent=0,carPlan=0,fat=0,ev=0,meta=0,metaL="";const dE=[],dCar=[],dF=[],dV=[],dFE=[];FM.grid.forEach(r=>{const v=r.vals[k]||0,t=r.tipo;if(!v||t.startsWith("saldo"))return;if(t.startsWith("entrada")){entTot+=v;const sp=k===n0?splitEnt(r.label,v):null;if(sp){let f=0;sp.forEach(p=>{if(p.dia>hd){f+=p.v;dFE.push({l:r.label,v:p.v,dia:p.dia})}else entRec+=p.v});ent+=f;if(f)dE.push({l:r.label,v:f})}else{ent+=v;if(k===n0)entRec+=v;dE.push({l:r.label,v})}}else if(t.startsWith("carro")){carPlan+=v;dCar.push({l:r.label,v})}else if(t.startsWith("fatura")){fat+=v;dF.push({l:r.label,v,dia:10})}else if(t.startsWith("meta")){meta+=v;metaL=r.label}else{ev-=Math.abs(v);dV.push({l:r.label,v:Math.abs(v)})}});
+const gl=FM.gastos.filter(g=>!g.card&&act(g,k)&&(k!==n0||!g.dia||g.dia>hd)),con=gl.reduce((a,g)=>a+g.v,0),cardEst=FM.gastos.filter(g=>g.card&&act(g,k)).reduce((a,g)=>a+g.v,0),cc=k===n0&&hd>=10?0:(fat>0?fat:cardEst),car=REAL||!carPlan?carA:carPlan,sal=ent+car-con-cc+ev;cum+=sal;
+const dC=gl.map(g=>({l:g.d,v:g.v,dia:g.dia})),dCr=C.map(c=>({l:c.n+" (ritmo real)",v:Math.max(c.sem,0)*SEM})),ccFull=fat>0?fat:cardEst,dFa=ccFull>0?(fat>0?dF:[{l:"Fatura do cartão (itens)",v:cardEst,dia:10}]):[],dFt=cc>0?dFa:[];
+M.push({k,ent,entTot,entRec,car,carPlan,con,cc,ev,sal,cum,sai:con+cc,det:{ent:[...dE,...(REAL||!carPlan?dCr:dCar)],con:dC,fe:dFE,fc:dCar,fa:dFa,fal:[...dC,...dFt],sai:[...dC,...dFt,...dV]}});if(meta>0&&!mt)mt={k,v:meta,d:metaL}});
 return {M,s0:open,carA,n0,mt}}
 function chart(P,mt){const M=P.M.slice(0,12),W=640,H=230,pl=40,pb=22,pt=10,vs=[...M.flatMap(x=>[x.ent+x.car,x.sai,x.cum]),mt?mt.v:0,0],hi=Math.max(...vs)*1.05,lo=Math.min(...vs)*1.05,y=v=>pt+(hi-v)/(hi-lo)*(H-pt-pb),bw=(W-pl)/M.length;
 return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Entradas, saídas e saldo acumulado por mês"><line x1="${pl}" x2="${W}" y1="${y(0)}" y2="${y(0)}" stroke="var(--ln)"/><text x="0" y="${y(hi)+8}" font-size="9" fill="currentColor">${kf(hi)}</text><text x="0" y="${y(0)+3}" font-size="9" fill="currentColor">0</text><text x="0" y="${y(lo)}" font-size="9" fill="currentColor">${kf(lo)}</text>
 ${M.map((x,i)=>{const a=pl+i*bw+bw*.1,w=bw*.36,e=x.ent+x.car;return `<rect x="${a}" y="${Math.min(y(e),y(0))}" width="${w}" height="${Math.abs(y(0)-y(e))}" fill="var(--g)"/><rect x="${a+w}" y="${Math.min(y(x.sai),y(0))}" width="${w}" height="${Math.abs(y(0)-y(x.sai))}" fill="var(--r)"/><text x="${pl+i*bw+bw/2}" y="${H-6}" text-anchor="middle" font-size="9" fill="currentColor">${ML(x.k).slice(0,3)}</text>`}).join("")}
 <polyline fill="none" stroke="currentColor" stroke-width="2" points="${M.map((x,i)=>(pl+i*bw+bw/2)+","+y(x.cum)).join(" ")}"/>${mt?`<line x1="${pl}" x2="${W}" y1="${y(mt.v)}" y2="${y(mt.v)}" stroke="var(--a)" stroke-dasharray="5 4"/><text x="${W-4}" y="${y(mt.v)-4}" text-anchor="end" font-size="10" fill="var(--a)">meta ${kf(mt.v)}</text>`:""}</svg>
 <p class="note"><span class="pos">■</span> entradas <span class="neg">■</span> saídas — linha: saldo acumulado; tracejado: meta</p>`}
-function dash(P){const m0=P.M[0],kk=mkey(P.n0),hoje=HOJE.getDate(),mt=P.mt,gs=FM.gastos.filter(g=>!g.card&&act(g,P.n0)),cars=C.reduce((a,c)=>a+(c.mo[kk]||0),0),real=m0.ent+cars,
-saiu=gs.filter(g=>g.dia&&g.dia<=hoje).reduce((a,g)=>a+g.v,0)+(hoje>=10?m0.cc:0),mm=mt&&P.M.find(x=>x.k===mt.k),gap=mm?mt.v-mm.cum:0,n=mt?Math.max(mt.k-P.n0+1,1):1,ti=FM.invest.reduce((a,x)=>a+x.tot,0);
+let POPD={},POPF=null;
+const esc=x=>String(x??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])),fdia=dia=>{if(!dia)return"—";const d=dClamp(HOJE.getFullYear(),HOJE.getMonth(),dia);return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")};
+function popData(P,gs,cars,kk,hoje){const m0=P.M[0],srt=a=>a.sort((x,y)=>(x.dia||99)-(y.dia||99)||y.v-x.v),sm=a=>a.reduce((t,x)=>t+x.v,0),
+carL=((REAL||!m0.carPlan)?C.map(c=>{const pr=Math.max(c.sem,0)*SEM,rc=c.mo[kk]||0;return {l:c.n,v:pr-rc,n:"ritmo "+R(pr)+" − recebido "+R(rc)}}):[...m0.det.fc.map(x=>({l:x.l,v:x.v,n:"planejado"})),{l:"Já recebido dos carros",v:-cars}]).filter(x=>Math.abs(x.v)>=.005),
+ent=[...srt(m0.det.fe.map(x=>({...x}))),...carL],
+sai=srt([...gs.filter(g=>g.dia&&g.dia<=hoje).map(g=>({l:g.d,v:g.v,dia:g.dia})),...(hoje>=10?m0.det.fa.map(x=>({...x})):[])]),
+fal=srt(m0.det.fal.map(x=>({...x})));
+return POPD={ent:{t:"Falta entrar no mês",rows:ent,tot:sm(ent),cl:"pos",note:"Recebimentos com dia (ML, Cris) e, nos carros, o ritmo real do mês menos o que já foi recebido."},
+sai:{t:"Saiu até hoje",rows:sai,tot:sm(sai),cl:"neg",note:"Contas com vencimento até hoje"+(hoje>=10?" e a fatura do cartão (dia 10).":".")},
+fal:{t:"Falta sair no mês",rows:fal,tot:sm(fal),cl:"neg",note:"Contas que vencem a partir de amanhã, as sem dia definido e a fatura do cartão (até o dia 10)."+(m0.ev<0?" Fora deste total: eventos do MES A MES no mês ("+R(-m0.ev)+").":"")}}}
+function closePop(){const o=document.getElementById("ov");if(!o)return;o.remove();const m=document.querySelector("main");if(m)m.inert=false;document.body.style.overflow="";if(POPF&&POPF.isConnected)POPF.focus();POPF=null}
+function pop(t){const d=POPD[t];if(!d)return;closePop();POPF=document.activeElement;const o=document.createElement("div");o.className="ov";o.id="ov";o.onclick=e=>{if(e.target===o)closePop()};
+o.innerHTML=`<div class="dlg" role="dialog" aria-modal="true" aria-label="${esc(d.t)}"><div class="dh"><b>${esc(d.t)}</b><button type="button" id="ovx" onclick="closePop()">Fechar ✕</button></div>${d.rows.length?`<table><tr><th>Data</th><th>Item</th><th>Valor</th></tr>${d.rows.map(x=>`<tr><td>${fdia(x.dia)}</td><td>${esc(x.l)}${x.n?`<small class="note">${esc(x.n)}</small>`:""}</td><td class="${x.v<0?"pos":""}">${R(x.v)}</td></tr>`).join("")}<tr><th></th><th>Total</th><th class="${d.cl}">${R(d.tot)}</th></tr></table>`:`<p>Nada pendente neste mês.</p>`}<p class="note">${esc(d.note)}</p></div>`;
+document.body.appendChild(o);const m=document.querySelector("main");if(m)m.inert=true;document.body.style.overflow="hidden";document.getElementById("ovx").focus()}
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closePop()});
+function dash(P){const m0=P.M[0],kk=mkey(P.n0),hoje=HOJE.getDate(),mt=P.mt,gs=FM.gastos.filter(g=>!g.card&&act(g,P.n0)),cars=C.reduce((a,c)=>a+(c.mo[kk]||0),0),real=m0.entRec+cars,
+mm=mt&&P.M.find(x=>x.k===mt.k),gap=mm?mt.v-mm.cum:0,n=mt?Math.max(mt.k-P.n0+1,1):1,ti=FM.invest.reduce((a,x)=>a+x.tot,0);
+const PD=popData(P,gs,cars,kk,hoje),saiu=PD.sai.tot;
 const cat={};gs.forEach(g=>cat[g.cat]=(cat[g.cat]||0)+g.v);if(m0.cc)cat["CARTÃO (fatura)"]=m0.cc;const cl=Object.entries(cat).filter(a=>a[1]>0).sort((a,b)=>b[1]-a[1]),cmax=Math.max(1,...cl.map(a=>a[1]));
-return `<div class="grid"><div class="k"><small>Entrou no mês (realizado)</small><b class="pos">${R(real)}</b><small>previsto: ${R(m0.ent+m0.car)}</small></div>
-<div class="k"><small>Falta entrar no mês</small><b>${R(Math.max(m0.ent+m0.car-real,0))}</b></div>
-<div class="k"><small>Saiu até hoje</small><b class="neg">${R(saiu)}</b></div><div class="k"><small>Falta sair no mês</small><b>${R(m0.sai)}</b></div>
+return `<div class="grid"><div class="k"><small>Entrou no mês (realizado)</small><b class="pos">${R(real)}</b><small>previsto: ${R(m0.entTot+m0.car)}</small></div>
+<button type="button" class="k" onclick="pop('ent')"><small>Falta entrar no mês</small><b>${R(Math.max(PD.ent.tot,0))}</b>${prox(P)}<small class="more">ver detalhes ›</small></button>
+<button type="button" class="k" onclick="pop('sai')"><small>Saiu até hoje</small><b class="neg">${R(saiu)}</b><small class="more">ver detalhes ›</small></button><button type="button" class="k" onclick="pop('fal')"><small>Falta sair no mês</small><b>${R(PD.fal.tot)}</b><small class="more">ver detalhes ›</small></button>
 <div class="k"><small>Saldo projetado fim do mês</small><b class="${cs(m0.cum)}">${R(m0.cum)}</b><small>saldo inicial: ${R(P.s0)}</small></div>
 <div class="k"><small>Entradas cobrem as saídas</small><b class="${(m0.ent+m0.car)>=m0.sai?"pos":"neg"}">${(((m0.ent+m0.car)/Math.max(m0.sai,1))*100).toFixed(0)}%</b></div>
 <div class="k"><small>Carros no mês</small><b>${R(m0.car)}</b><small>planejado ${R(m0.carPlan)} · real ${R(P.carA)}</small></div>
@@ -216,11 +242,16 @@ lab.map(n=>`<tr data-g="${key}" style="display:${OPEN[key]?"":"none"};color:var(
 return `<div class="box"><table style="font-size:.88rem"><tr><th style="${st}">Item <small class="note">(R$)</small></th>${ms.map(x=>`<th style="white-space:nowrap">${ML(x.k).replace("/20","/")}</th>`).join("")}</tr>
 ${rows.map(r=>`<tr><td style="${st}">${r.label}</td>${ms.map(x=>`<td style="white-space:nowrap">${N(r.vals[x.k])}</td>`).join("")}</tr>`).join("")}
 ${ex("con","Contas a pagar",x=>x.con,1)}${ex("ent","Total entradas",x=>x.ent+x.car)}${ex("sai","Total saídas",x=>x.sai-x.ev)}${tr("Saldo mês",x=>x.sal,1,0,1)}</table>
-<p class="note">Clique em ▼ para ver o que compõe cada total. Contas a pagar: no mês atual, só as contas que ainda vencem (a partir de amanhã) e a fatura se ainda não passou o dia 10; nos meses seguintes, todas. Carros: ${REAL?"ritmo real":"planejado"}.${SHEET_FIN_EDIT_URL?` <a href="${SHEET_FIN_EDIT_URL}" target="_blank" rel="noopener">Abrir planilha</a>`:""}</p></div>`}
-function venc(P){const hoje0=new Date(HOJE.getFullYear(),HOJE.getMonth(),HOJE.getDate()),L=[],nx=dia=>{let d=new Date(HOJE.getFullYear(),HOJE.getMonth(),dia);if(d<hoje0)d=new Date(HOJE.getFullYear(),HOJE.getMonth()+1,dia);return d};
-FM.gastos.filter(g=>!g.card&&g.dia).forEach(g=>{const d=nx(g.dia);if(act(g,d.getFullYear()*12+d.getMonth()))L.push({n:g.d,d,v:g.v})});if(P.M[0].cc>0)L.push({n:"Fatura do cartão",d:nx(10),v:P.M[0].cc});L.sort((a,b)=>a.d-b.d);
-const sd=FM.gastos.filter(g=>!g.card&&!g.dia&&act(g,P.n0)).reduce((a,g)=>a+g.v,0),dd=v=>Math.round((v.d-hoje0)/864e5);
-return `<div class="box"><b>Próximos vencimentos</b><table>${L.map(v=>`<tr><td>${v.n}</td><td>${v.d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})} (${dd(v)===0?"hoje":dd(v)+" d"})</td><td>${R(v.v)}</td></tr>`).join("")}</table>${sd?`<p class="note">Sem dia definido: ${R(sd)}</p>`:""}</div>`}
+<p class="note">Clique em ▼ para ver o que compõe cada total. Contas a pagar e recebimentos com dia (ML, Cris): no mês atual, só os que ainda vencem/entram (a partir de amanhã) e a fatura se ainda não passou o dia 10; nos meses seguintes, todas. Carros: ${REAL?"ritmo real":"planejado"}.${SHEET_FIN_EDIT_URL?` <a href="${SHEET_FIN_EDIT_URL}" target="_blank" rel="noopener">Abrir planilha</a>`:""}</p></div>`}
+function recFut(P,ate){const hoje0=new Date(HOJE.getFullYear(),HOJE.getMonth(),HOJE.getDate()),L=[],labs=[...new Set(FM.receb.map(x=>x.d))];
+[P.n0,P.n0+1,P.n0+2].forEach(k=>labs.forEach(l=>{const tot=FM.grid.filter(r=>r.tipo.startsWith("entrada")&&same(r.label,l)).reduce((a,r)=>a+(r.vals[k]||0),0);(splitEnt(l,tot)||[]).forEach(p=>{const d=dClamp(Math.floor(k/12),k%12,p.dia);if(d>hoje0&&d<=ate)L.push({n:l,d,v:p.v,rec:1})})}));return L}
+function prox(P){const L=recFut(P,new Date(HOJE.getFullYear(),HOJE.getMonth()+2,0)).sort((a,b)=>a.d-b.d)[0];return L?`<small>próximo: ${L.n} ${R(L.v)} em ${L.d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})}</small>`:""}
+function venc(P){const hoje0=new Date(HOJE.getFullYear(),HOJE.getMonth(),HOJE.getDate()),ate=new Date(HOJE.getFullYear(),HOJE.getMonth()+1,HOJE.getDate()),L=[],nx=dia=>{let d=dClamp(HOJE.getFullYear(),HOJE.getMonth(),dia);if(d<hoje0)d=dClamp(HOJE.getFullYear(),HOJE.getMonth()+1,dia);return d};
+FM.gastos.filter(g=>!g.card&&g.dia).forEach(g=>{const d=nx(g.dia);if(act(g,d.getFullYear()*12+d.getMonth()))L.push({n:g.d,d,v:g.v})});if(P.M[0].cc>0)L.push({n:"Fatura do cartão",d:nx(10),v:P.M[0].cc});
+L.push(...recFut(P,ate));L.sort((a,b)=>a.d-b.d||(b.rec||0)-(a.rec||0));let sl=P.s0;L.forEach(v=>{sl+=v.rec?v.v:-v.v;v.s=sl});
+const sd=FM.gastos.filter(g=>!g.card&&!g.dia&&act(g,P.n0)).reduce((a,g)=>a+g.v,0),dd=v=>Math.round((v.d-hoje0)/864e5),rl=FM.receb.map(x=>x.d+" dia "+x.dia).join(" · ");
+return `<div class="box"><b>Próximos vencimentos e recebimentos</b><table><tr><th>Item</th><th>Data</th><th>Valor</th><th>Saldo</th></tr>${L.map(v=>`<tr><td>${v.rec?`<span class="pos">▲ ${v.n}</span>`:v.n}</td><td>${v.d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})} (${dd(v)===0?"hoje":dd(v)+" d"})</td><td class="${v.rec?"pos":""}">${v.rec?"+":"−"}${R(v.v)}</td><td class="${cs(v.s)}">${R(v.s)}</td></tr>`).join("")}</table>
+<p class="note">Saldo parte do saldo em conta da planilha (${R(P.s0)}) e não inclui os carros. Recebimentos: ${rl}. O último dia de cada item recebe o restante do valor do MES A MES (ex.: ML 7.500 = 3.100 no dia 15 + 4.400 no dia 30). Para mudar, adicione linhas com Grupo RECEBIMENTO na aba FINANCEIRO - VENCIMENTOS.</p>${sd?`<p class="note">Sem dia definido: ${R(sd)}</p>`:""}</div>`}
 function divi(){const d=FM.div,td=d.reduce((a,x)=>a+x.tot,0),ti=FM.invest.reduce((a,x)=>a+x.tot,0);
 return `<div class="grid"><div class="k"><small>Dívidas totais</small><b class="neg">${R(td)}</b></div><div class="k"><small>Investimentos</small><b class="pos">${R(ti)}</b></div><div class="k"><small>Frota (venda: FIPE −${DESC}%)</small><b>${R(tot("fv"))}</b></div></div>
 <div class="box"><table><tr><th>Descrição</th><th>Parcelas</th><th>Total</th></tr>${d.map(x=>`<tr><td>${x.d}</td><td>${x.np??"-"}</td><td>${R(x.tot)}</td></tr>`).join("")}<tr><th style="text-align:left">Total dívidas</th><td></td><td><b>${R(td)}</b></td></tr></table><p class="note">Edite na aba DIVIDAS E INVESTIMENTOS.</p></div>`}
