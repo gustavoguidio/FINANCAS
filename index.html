@@ -23,6 +23,15 @@ button.k{font:inherit;color:inherit;text-align:left;cursor:pointer;width:100%}bu
 .dh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}.dh b{font-size:1.1rem}
 .dh button{font:inherit;border:1px solid var(--ln);background:var(--bg);color:var(--ink);border-radius:8px;padding:6px 12px;cursor:pointer}.dh button:focus-visible{outline:3px solid var(--g);outline-offset:2px}
 .dlg td:nth-child(2),.dlg th:nth-child(2){text-align:left}.dlg td:first-child{white-space:nowrap;color:var(--mut)}.dlg td small{display:block}
+input[type=checkbox]{width:24px;height:24px;padding:0;margin:0;accent-color:var(--g);cursor:pointer;vertical-align:middle}
+table td.ck{width:44px;text-align:center;padding:4px}
+.vt td:nth-child(2),.vt th:nth-child(2){text-align:left}.vt td,.vt th{padding:8px 6px}.vt td small{display:block;white-space:nowrap}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) input[type=checkbox]{color-scheme:dark}}
+:root[data-theme="dark"] input[type=checkbox]{color-scheme:dark}
+tr.pd td{opacity:.55}tr.pd td.ck{opacity:1}
+tr.sep td{text-align:left;padding-top:16px;border-bottom:2px solid var(--ln);font-size:.85rem;color:var(--mut);font-weight:600}
+.bd{display:inline-block;font-size:.7rem;padding:0 6px;margin-left:6px;border-radius:999px;border:1px solid currentColor;font-weight:400;white-space:nowrap}
+.vs{display:flex;flex-wrap:wrap;gap:4px 18px;margin:8px 0 6px;font-size:.92rem}
 .pos{color:var(--g)}.neg{color:var(--r)}.warn{color:var(--a)}
 .row{background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:14px;margin-bottom:10px}
 .row h3{margin:0 0 6px;font-size:1.05rem;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
@@ -185,13 +194,25 @@ function setDiv(d){FM.div=d.filter(x=>x.t==="div");FM.invest=d.filter(x=>x.t==="
 function linkCars(){C.forEach(c=>{if(!c.cons)return;const d=FM.div.find(x=>same(x.d,c.cons));if(d){if(d.np!==null)c.np=d.np;if(d.vp!==null)c.vp=d.vp}})}
 const act=(g,k)=>(g.ini===null||g.ini<=k)&&(g.fim===null||g.fim>=k);
 setCars(rCad(csv(DEFT.cad)));applyLanc(rLanc(csv(DEFT.frota)));setFin(rVenc(csv(DEFT.venc)),rMes(csv(DEFT.mes)));setDiv(rDiv(csv(DEFT.div)));linkCars();calc();
+let PG={};try{PG=JSON.parse(localStorage.getItem("fin_pagos")||"{}")||{}}catch(e){PG={}}
+const svPG=()=>{try{localStorage.setItem("fin_pagos",JSON.stringify(PG))}catch(e){}},nowM=()=>HOJE.getFullYear()*12+HOJE.getMonth();
+function ledger(m){const mk=mkey(m),cur=m===nowM(),lastD=new Date(Math.floor(m/12),m%12+1,0).getDate(),cnt={},L=[],
+id=(s,l,d)=>{const b=s+"|"+nrm(l)+"|"+(d||0);cnt[b]=(cnt[b]||0)+1;return b+(cnt[b]>1?"#"+cnt[b]:"")},
+add=(t,s,l,v,dia)=>{if(!v)return;const dd=dia?Math.min(dia,lastD):null,k=id(s,l,dd),st=(PG[mk]||{})[k],au=cur&&dd!==null&&dd<=HOJE.getDate();L.push({id:k,t,src:s,l,v,dia:dd,paid:cur?(st===undefined?au:!!st):false,auto:cur&&st===undefined})};
+const labs=[];FM.grid.forEach(r=>{if(r.tipo.startsWith("entrada")&&r.vals[m]&&!labs.some(x=>same(x,r.label)))labs.push(r.label)});
+labs.forEach(l=>{const tot=FM.grid.filter(r=>r.tipo.startsWith("entrada")&&same(r.label,l)).reduce((a,r)=>a+(r.vals[m]||0),0),sp=splitEnt(l,tot);if(sp)sp.forEach(q=>add("in","ent",l,q.v,q.dia));else add("in","ent",l,tot,0)});
+FM.gastos.filter(g=>!g.card&&act(g,m)).forEach(g=>add("out","conta",g.d,g.v,g.dia));
+const fr=FM.grid.filter(r=>r.tipo.startsWith("fatura")&&r.vals[m]);
+if(fr.length)fr.forEach(r=>add("out","fatura",r.label,r.vals[m],10));else{const ce=FM.gastos.filter(g=>g.card&&act(g,m)).reduce((a,g)=>a+g.v,0);if(ce>0)add("out","fatura","Fatura do cartão (itens)",ce,10)}
+return L}
 function proj(){const n0=HOJE.getFullYear()*12+HOJE.getMonth();let ks=FM.months.filter(k=>k>=n0).slice(0,14);if(!ks.length)ks=Array.from({length:12},(_,i)=>n0+i);
 const carA=C.reduce((a,c)=>a+Math.max(c.sem,0)*SEM,0);let open=0;FM.grid.filter(r=>r.tipo.startsWith("saldo")).forEach(r=>{const k=Object.keys(r.vals).map(Number).filter(k=>k<=n0).sort((a,b)=>b-a)[0]??Object.keys(r.vals).map(Number).sort((a,b)=>a-b)[0];if(k!==undefined)open+=r.vals[k]});
 let cum=open;const M=[];let mt=null;
-const hd=HOJE.getDate();ks.forEach(k=>{let entTot=0,entRec=0,ent=0,carPlan=0,fat=0,ev=0,meta=0,metaL="";const dE=[],dCar=[],dF=[],dV=[],dFE=[];FM.grid.forEach(r=>{const v=r.vals[k]||0,t=r.tipo;if(!v||t.startsWith("saldo"))return;if(t.startsWith("entrada")){entTot+=v;const sp=k===n0?splitEnt(r.label,v):null;if(sp){let f=0;sp.forEach(p=>{if(p.dia>hd){f+=p.v;dFE.push({l:r.label,v:p.v,dia:p.dia})}else entRec+=p.v});ent+=f;if(f)dE.push({l:r.label,v:f})}else{ent+=v;if(k===n0)entRec+=v;dE.push({l:r.label,v})}}else if(t.startsWith("carro")){carPlan+=v;dCar.push({l:r.label,v})}else if(t.startsWith("fatura")){fat+=v;dF.push({l:r.label,v,dia:10})}else if(t.startsWith("meta")){meta+=v;metaL=r.label}else{ev-=Math.abs(v);dV.push({l:r.label,v:Math.abs(v)})}});
-const gl=FM.gastos.filter(g=>!g.card&&act(g,k)&&(k!==n0||!g.dia||g.dia>hd)),con=gl.reduce((a,g)=>a+g.v,0),cardEst=FM.gastos.filter(g=>g.card&&act(g,k)).reduce((a,g)=>a+g.v,0),cc=k===n0&&hd>=10?0:(fat>0?fat:cardEst),car=REAL||!carPlan?carA:carPlan,sal=ent+car-con-cc+ev;cum+=sal;
-const dC=gl.map(g=>({l:g.d,v:g.v,dia:g.dia})),dCr=C.map(c=>({l:c.n+" (ritmo real)",v:Math.max(c.sem,0)*SEM})),ccFull=fat>0?fat:cardEst,dFa=ccFull>0?(fat>0?dF:[{l:"Fatura do cartão (itens)",v:cardEst,dia:10}]):[],dFt=cc>0?dFa:[];
-M.push({k,ent,entTot,entRec,car,carPlan,con,cc,ev,sal,cum,sai:con+cc,det:{ent:[...dE,...(REAL||!carPlan?dCr:dCar)],con:dC,fe:dFE,fc:dCar,fa:dFa,fal:[...dC,...dFt],sai:[...dC,...dFt,...dV]}});if(meta>0&&!mt)mt={k,v:meta,d:metaL}});
+ks.forEach(k=>{const LD=k===n0?ledger(n0):null;let entTot=0,entRec=0,ent=0,carPlan=0,fat=0,ev=0,meta=0,metaL="";const dE=[],dCar=[],dF=[],dV=[];FM.grid.forEach(r=>{const v=r.vals[k]||0,t=r.tipo;if(!v||t.startsWith("saldo"))return;if(t.startsWith("entrada")){entTot+=v;if(k!==n0){ent+=v;dE.push({l:r.label,v})}}else if(t.startsWith("carro")){carPlan+=v;dCar.push({l:r.label,v})}else if(t.startsWith("fatura")){fat+=v;dF.push({l:r.label,v,dia:10})}else if(t.startsWith("meta")){meta+=v;metaL=r.label}else{ev-=Math.abs(v);dV.push({l:r.label,v:Math.abs(v)})}});
+if(LD)LD.filter(x=>x.t==="in").forEach(x=>{if(x.paid)entRec+=x.v;else{ent+=x.v;dE.push({l:x.l,v:x.v})}});
+const gl=LD?LD.filter(x=>x.src==="conta"&&!x.paid).map(x=>({d:x.l,v:x.v,dia:x.dia})):FM.gastos.filter(g=>!g.card&&act(g,k)),con=gl.reduce((a,g)=>a+g.v,0),cardEst=FM.gastos.filter(g=>g.card&&act(g,k)).reduce((a,g)=>a+g.v,0),cc=LD?LD.filter(x=>x.src==="fatura"&&!x.paid).reduce((a,x)=>a+x.v,0):(fat>0?fat:cardEst),car=REAL||!carPlan?carA:carPlan,sal=ent+car-con-cc+ev;cum+=sal;
+const dC=gl.map(g=>({l:g.d,v:g.v,dia:g.dia})),dCr=C.map(c=>({l:c.n+" (ritmo real)",v:Math.max(c.sem,0)*SEM})),dFt=LD?LD.filter(x=>x.src==="fatura"&&!x.paid).map(x=>({l:x.l,v:x.v,dia:x.dia})):(cc>0?(fat>0?dF:[{l:"Fatura do cartão (itens)",v:cardEst,dia:10}]):[]);
+M.push({k,ent,entTot,entRec,car,carPlan,con,cc,ev,sal,cum,sai:con+cc,led:LD,det:{ent:[...dE,...(REAL||!carPlan?dCr:dCar)],con:dC,fc:dCar,fal:[...dC,...dFt],sai:[...dC,...dFt,...dV]}});if(meta>0&&!mt)mt={k,v:meta,d:metaL}});
 return {M,s0:open,carA,n0,mt}}
 function chart(P,mt){const M=P.M.slice(0,12),W=640,H=230,pl=40,pb=22,pt=10,vs=[...M.flatMap(x=>[x.ent+x.car,x.sai,x.cum]),mt?mt.v:0,0],hi=Math.max(...vs)*1.05,lo=Math.min(...vs)*1.05,y=v=>pt+(hi-v)/(hi-lo)*(H-pt-pb),bw=(W-pl)/M.length;
 return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Entradas, saídas e saldo acumulado por mês"><line x1="${pl}" x2="${W}" y1="${y(0)}" y2="${y(0)}" stroke="var(--ln)"/><text x="0" y="${y(hi)+8}" font-size="9" fill="currentColor">${kf(hi)}</text><text x="0" y="${y(0)+3}" font-size="9" fill="currentColor">0</text><text x="0" y="${y(lo)}" font-size="9" fill="currentColor">${kf(lo)}</text>
@@ -200,14 +221,14 @@ ${M.map((x,i)=>{const a=pl+i*bw+bw*.1,w=bw*.36,e=x.ent+x.car;return `<rect x="${
 <p class="note"><span class="pos">■</span> entradas <span class="neg">■</span> saídas — linha: saldo acumulado; tracejado: meta</p>`}
 let POPD={},POPF=null;
 const esc=x=>String(x??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])),fdia=dia=>{if(!dia)return"—";const d=dClamp(HOJE.getFullYear(),HOJE.getMonth(),dia);return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")};
-function popData(P,gs,cars,kk,hoje){const m0=P.M[0],srt=a=>a.sort((x,y)=>(x.dia||99)-(y.dia||99)||y.v-x.v),sm=a=>a.reduce((t,x)=>t+x.v,0),
+function popData(P,cars,kk){const m0=P.M[0],LD=m0.led||[],hoje=HOJE.getDate(),srt=a=>a.sort((x,y)=>(x.dia||99)-(y.dia||99)||y.v-x.v),sm=a=>a.reduce((t,x)=>t+x.v,0),late=x=>x.dia&&x.dia<hoje,
 carL=((REAL||!m0.carPlan)?C.map(c=>{const pr=Math.max(c.sem,0)*SEM,rc=c.mo[kk]||0;return {l:c.n,v:pr-rc,n:"ritmo "+R(pr)+" − recebido "+R(rc)}}):[...m0.det.fc.map(x=>({l:x.l,v:x.v,n:"planejado"})),{l:"Já recebido dos carros",v:-cars}]).filter(x=>Math.abs(x.v)>=.005),
-ent=[...srt(m0.det.fe.map(x=>({...x}))),...carL],
-sai=srt([...gs.filter(g=>g.dia&&g.dia<=hoje).map(g=>({l:g.d,v:g.v,dia:g.dia})),...(hoje>=10?m0.det.fa.map(x=>({...x})):[])]),
-fal=srt(m0.det.fal.map(x=>({...x})));
-return POPD={ent:{t:"Falta entrar no mês",rows:ent,tot:sm(ent),cl:"pos",note:"Recebimentos com dia (ML, Cris) e, nos carros, o ritmo real do mês menos o que já foi recebido."},
-sai:{t:"Saiu até hoje",rows:sai,tot:sm(sai),cl:"neg",note:"Contas com vencimento até hoje"+(hoje>=10?" e a fatura do cartão (dia 10).":".")},
-fal:{t:"Falta sair no mês",rows:fal,tot:sm(fal),cl:"neg",note:"Contas que vencem a partir de amanhã, as sem dia definido e a fatura do cartão (até o dia 10)."+(m0.ev<0?" Fora deste total: eventos do MES A MES no mês ("+R(-m0.ev)+").":"")}}}
+ent=[...srt(LD.filter(x=>x.t==="in"&&!x.paid).map(x=>({l:x.l,v:x.v,dia:x.dia,n:late(x)?"em atraso":""}))),...carL],
+sai=srt(LD.filter(x=>x.t==="out"&&x.paid).map(x=>({l:x.l,v:x.v,dia:x.dia,n:x.auto?"marcado pela data de vencimento":""}))),
+fal=srt(LD.filter(x=>x.t==="out"&&!x.paid).map(x=>({l:x.l,v:x.v,dia:x.dia,n:late(x)?"vencida e ainda não marcada como paga":""})));
+return POPD={ent:{t:"Falta entrar no mês",rows:ent,tot:sm(ent),cl:"pos",note:"Recebimentos ainda não marcados como recebidos (aba Vencimentos) e, nos carros, o ritmo real do mês menos o que já foi recebido."},
+sai:{t:"Saiu até hoje",rows:sai,tot:sm(sai),cl:"neg",note:"Itens marcados como pagos na aba Vencimentos. Os marcados como automáticos seguem a data de vencimento até você alterar."},
+fal:{t:"Falta sair no mês",rows:fal,tot:sm(fal),cl:"neg",note:"Itens ainda não marcados como pagos: vencidos, a vencer e sem dia definido."+(m0.ev<0?" Fora deste total: eventos do MES A MES no mês ("+R(-m0.ev)+").":"")}}}
 function closePop(){const o=document.getElementById("ov");if(!o)return;o.remove();const m=document.querySelector("main");if(m)m.inert=false;document.body.style.overflow="";if(POPF&&POPF.isConnected)POPF.focus();POPF=null}
 function pop(t){const d=POPD[t];if(!d)return;closePop();POPF=document.activeElement;const o=document.createElement("div");o.className="ov";o.id="ov";o.onclick=e=>{if(e.target===o)closePop()};
 o.innerHTML=`<div class="dlg" role="dialog" aria-modal="true" aria-label="${esc(d.t)}"><div class="dh"><b>${esc(d.t)}</b><button type="button" id="ovx" onclick="closePop()">Fechar ✕</button></div>${d.rows.length?`<table><tr><th>Data</th><th>Item</th><th>Valor</th></tr>${d.rows.map(x=>`<tr><td>${fdia(x.dia)}</td><td>${esc(x.l)}${x.n?`<small class="note">${esc(x.n)}</small>`:""}</td><td class="${x.v<0?"pos":""}">${R(x.v)}</td></tr>`).join("")}<tr><th></th><th>Total</th><th class="${d.cl}">${R(d.tot)}</th></tr></table>`:`<p>Nada pendente neste mês.</p>`}<p class="note">${esc(d.note)}</p></div>`;
@@ -215,7 +236,7 @@ document.body.appendChild(o);const m=document.querySelector("main");if(m)m.inert
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closePop()});
 function dash(P){const m0=P.M[0],kk=mkey(P.n0),hoje=HOJE.getDate(),mt=P.mt,gs=FM.gastos.filter(g=>!g.card&&act(g,P.n0)),cars=C.reduce((a,c)=>a+(c.mo[kk]||0),0),real=m0.entRec+cars,
 mm=mt&&P.M.find(x=>x.k===mt.k),gap=mm?mt.v-mm.cum:0,n=mt?Math.max(mt.k-P.n0+1,1):1,ti=FM.invest.reduce((a,x)=>a+x.tot,0);
-const PD=popData(P,gs,cars,kk,hoje),saiu=PD.sai.tot;
+const PD=popData(P,cars,kk),saiu=PD.sai.tot;
 const cat={};gs.forEach(g=>cat[g.cat]=(cat[g.cat]||0)+g.v);if(m0.cc)cat["CARTÃO (fatura)"]=m0.cc;const cl=Object.entries(cat).filter(a=>a[1]>0).sort((a,b)=>b[1]-a[1]),cmax=Math.max(1,...cl.map(a=>a[1]));
 return `<div class="grid"><div class="k"><small>Entrou no mês (realizado)</small><b class="pos">${R(real)}</b><small>previsto: ${R(m0.entTot+m0.car)}</small></div>
 <button type="button" class="k" onclick="pop('ent')"><small>Falta entrar no mês</small><b>${R(Math.max(PD.ent.tot,0))}</b>${prox(P)}<small class="more">ver detalhes ›</small></button>
@@ -242,16 +263,25 @@ lab.map(n=>`<tr data-g="${key}" style="display:${OPEN[key]?"":"none"};color:var(
 return `<div class="box"><table style="font-size:.88rem"><tr><th style="${st}">Item <small class="note">(R$)</small></th>${ms.map(x=>`<th style="white-space:nowrap">${ML(x.k).replace("/20","/")}</th>`).join("")}</tr>
 ${rows.map(r=>`<tr><td style="${st}">${r.label}</td>${ms.map(x=>`<td style="white-space:nowrap">${N(r.vals[x.k])}</td>`).join("")}</tr>`).join("")}
 ${ex("con","Contas a pagar",x=>x.con,1)}${ex("ent","Total entradas",x=>x.ent+x.car)}${ex("sai","Total saídas",x=>x.sai-x.ev)}${tr("Saldo mês",x=>x.sal,1,0,1)}</table>
-<p class="note">Clique em ▼ para ver o que compõe cada total. Contas a pagar e recebimentos com dia (ML, Cris): no mês atual, só os que ainda vencem/entram (a partir de amanhã) e a fatura se ainda não passou o dia 10; nos meses seguintes, todas. Carros: ${REAL?"ritmo real":"planejado"}.${SHEET_FIN_EDIT_URL?` <a href="${SHEET_FIN_EDIT_URL}" target="_blank" rel="noopener">Abrir planilha</a>`:""}</p></div>`}
-function recFut(P,ate){const hoje0=new Date(HOJE.getFullYear(),HOJE.getMonth(),HOJE.getDate()),L=[],labs=[...new Set(FM.receb.map(x=>x.d))];
-[P.n0,P.n0+1,P.n0+2].forEach(k=>labs.forEach(l=>{const tot=FM.grid.filter(r=>r.tipo.startsWith("entrada")&&same(r.label,l)).reduce((a,r)=>a+(r.vals[k]||0),0);(splitEnt(l,tot)||[]).forEach(p=>{const d=dClamp(Math.floor(k/12),k%12,p.dia);if(d>hoje0&&d<=ate)L.push({n:l,d,v:p.v,rec:1})})}));return L}
-function prox(P){const L=recFut(P,new Date(HOJE.getFullYear(),HOJE.getMonth()+2,0)).sort((a,b)=>a.d-b.d)[0];return L?`<small>próximo: ${L.n} ${R(L.v)} em ${L.d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})}</small>`:""}
-function venc(P){const hoje0=new Date(HOJE.getFullYear(),HOJE.getMonth(),HOJE.getDate()),ate=new Date(HOJE.getFullYear(),HOJE.getMonth()+1,HOJE.getDate()),L=[],nx=dia=>{let d=dClamp(HOJE.getFullYear(),HOJE.getMonth(),dia);if(d<hoje0)d=dClamp(HOJE.getFullYear(),HOJE.getMonth()+1,dia);return d};
-FM.gastos.filter(g=>!g.card&&g.dia).forEach(g=>{const d=nx(g.dia);if(act(g,d.getFullYear()*12+d.getMonth()))L.push({n:g.d,d,v:g.v})});if(P.M[0].cc>0)L.push({n:"Fatura do cartão",d:nx(10),v:P.M[0].cc});
-L.push(...recFut(P,ate));L.sort((a,b)=>a.d-b.d||(b.rec||0)-(a.rec||0));let sl=P.s0;L.forEach(v=>{sl+=v.rec?v.v:-v.v;v.s=sl});
-const sd=FM.gastos.filter(g=>!g.card&&!g.dia&&act(g,P.n0)).reduce((a,g)=>a+g.v,0),dd=v=>Math.round((v.d-hoje0)/864e5),rl=FM.receb.map(x=>x.d+" dia "+x.dia).join(" · ");
-return `<div class="box"><b>Próximos vencimentos e recebimentos</b><table><tr><th>Item</th><th>Data</th><th>Valor</th><th>Saldo</th></tr>${L.map(v=>`<tr><td>${v.rec?`<span class="pos">▲ ${v.n}</span>`:v.n}</td><td>${v.d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})} (${dd(v)===0?"hoje":dd(v)+" d"})</td><td class="${v.rec?"pos":""}">${v.rec?"+":"−"}${R(v.v)}</td><td class="${cs(v.s)}">${R(v.s)}</td></tr>`).join("")}</table>
-<p class="note">Saldo parte do saldo em conta da planilha (${R(P.s0)}) e não inclui os carros. Recebimentos: ${rl}. O último dia de cada item recebe o restante do valor do MES A MES (ex.: ML 7.500 = 3.100 no dia 15 + 4.400 no dia 30). Para mudar, adicione linhas com Grupo RECEBIMENTO na aba FINANCEIRO - VENCIMENTOS.</p>${sd?`<p class="note">Sem dia definido: ${R(sd)}</p>`:""}</div>`}
+<p class="note">Clique em ▼ para ver o que compõe cada total. Contas a pagar, faturas e recebimentos (ML, Cris): no mês atual, só o que ainda não foi marcado como pago/recebido na aba Vencimentos; nos meses seguintes, tudo. Carros: ${REAL?"ritmo real":"planejado"}.${SHEET_FIN_EDIT_URL?` <a href="${SHEET_FIN_EDIT_URL}" target="_blank" rel="noopener">Abrir planilha</a>`:""}</p></div>`}
+function prox(P){let L=(P.M[0].led||[]).filter(x=>x.t==="in"&&!x.paid&&x.dia).sort((x,y)=>x.dia-y.dia),mo=P.n0,x=L[0];if(!x){x=ledger(P.n0+1).filter(y=>y.t==="in"&&y.dia).sort((p,q)=>p.dia-q.dia)[0];mo=P.n0+1}
+if(!x)return"";const d=dClamp(Math.floor(mo/12),mo%12,x.dia);return `<small>próximo: ${esc(x.l)} ${R(x.v)} em ${d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})}</small>`}
+function setPg(id,v){const mk=mkey(nowM()),y=window.scrollY;(PG[mk]=PG[mk]||{})[id]=!!v;svPG();show(0);window.scrollTo(0,y)}
+function clrPg(){if(!confirm("Voltar ao automático? As marcações manuais deste mês serão apagadas."))return;delete PG[mkey(nowM())];svPG();show(0)}
+function venc(P){const n0=P.n0,LD=P.M[0].led||[],hoje=HOJE.getDate(),fd=(m,dia)=>{const d=dClamp(Math.floor(m/12),m%12,dia);return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")},
+srt=a=>a.sort((x,y)=>(x.dia||99)-(y.dia||99)||(x.t==="in"?0:1)-(y.t==="in"?0:1)),pend=srt(LD.filter(x=>!x.paid)),done=srt(LD.filter(x=>x.paid)),nx=srt(ledger(n0+1).filter(x=>x.dia&&x.dia<=hoje)),
+sm=(a,t)=>a.filter(x=>x.t===t).reduce((q,x)=>q+x.v,0);let sl=P.s0;
+const row=(x,m,mode)=>{const late=mode==="p"&&x.dia&&x.dia<hoje;if(mode!=="d")sl+=x.t==="in"?x.v:-x.v;
+return `<tr class="${mode==="d"?"pd":""}"><td class="ck">${mode==="n"?"":`<input type="checkbox" ${mode==="d"?"checked":""} data-id="${esc(x.id)}" onchange="setPg(this.dataset.id,this.checked)" aria-label="${x.t==="in"?"Recebido":"Pago"}: ${esc(x.l)}">`}</td><td>${x.t==="in"?`<span class="pos">▲ ${esc(x.l)}</span>`:esc(x.l)}${late?`<span class="bd neg">em atraso</span>`:""}${mode==="d"&&x.auto?`<span class="bd">auto</span>`:""}</td><td style="white-space:nowrap">${x.dia?fd(m,x.dia):"sem dia"}</td><td style="white-space:nowrap"><b class="${x.t==="in"?"pos":""}">${x.t==="in"?"+":"−"}${R(x.v)}</b>${mode==="d"?"":`<small class="${cs(sl)}">saldo ${R(sl)}</small>`}</td></tr>`},
+sep=t=>`<tr class="sep"><td colspan="4">${t}</td></tr>`,
+hp=pend.map(x=>row(x,n0,"p")).join(""),hdn=done.map(x=>row(x,n0,"d")).join(""),hn=nx.map(x=>row(x,n0+1,"n")).join(""),
+rl=FM.receb.map(x=>x.d+" dia "+x.dia).join(" · ");
+return `<div class="box"><b>Vencimentos e recebimentos de ${ML(n0)}</b>
+<p class="vs"><span>Pago: <b class="neg">${R(sm(done,"out"))}</b></span><span>A pagar: <b>${R(sm(pend,"out"))}</b></span><span>Recebido: <b class="pos">${R(sm(done,"in"))}</b></span><span>A receber: <b>${R(sm(pend,"in"))}</b></span></p>
+<table class="vt"><tr><th></th><th>Item</th><th>Data</th><th>Valor / saldo</th></tr>${pend.length?sep("A pagar / a receber"):""}${hp}${done.length?sep("Já pago / recebido"):""}${hdn}${nx.length?sep("Mês seguinte (até "+fd(n0+1,hoje)+")"):""}${hn}</table>
+<p class="note">Marque o que já foi pago ou recebido neste mês, mesmo antes ou depois do vencimento: o Dashboard e o Mês a mês usam essas marcações. “auto” = marcado pela data de vencimento até você mexer no checkbox. As marcações ficam salvas neste navegador (celular e computador não se sincronizam).</p>
+<p class="note">Saldo parte do saldo em conta da planilha (${R(P.s0)}) e não inclui os carros. Recebimentos: ${rl}. O último dia de cada item recebe o restante do valor do MES A MES (ex.: ML 7.500 = 3.100 no dia 15 + 4.400 no dia 30).</p>
+<p><button onclick="clrPg()" style="font:inherit;padding:6px 12px;border-radius:8px;border:1px solid var(--ln);background:var(--card);color:var(--ink);cursor:pointer">Voltar ao automático (limpar marcações do mês)</button></p></div>`}
 function divi(){const d=FM.div,td=d.reduce((a,x)=>a+x.tot,0),ti=FM.invest.reduce((a,x)=>a+x.tot,0);
 return `<div class="grid"><div class="k"><small>Dívidas totais</small><b class="neg">${R(td)}</b></div><div class="k"><small>Investimentos</small><b class="pos">${R(ti)}</b></div><div class="k"><small>Frota (venda: FIPE −${DESC}%)</small><b>${R(tot("fv"))}</b></div></div>
 <div class="box"><table><tr><th>Descrição</th><th>Parcelas</th><th>Total</th></tr>${d.map(x=>`<tr><td>${x.d}</td><td>${x.np??"-"}</td><td>${R(x.tot)}</td></tr>`).join("")}<tr><th style="text-align:left">Total dívidas</th><td></td><td><b>${R(td)}</b></td></tr></table><p class="note">Edite na aba DIVIDAS E INVESTIMENTOS.</p></div>`}
